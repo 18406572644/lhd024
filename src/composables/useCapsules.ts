@@ -13,7 +13,9 @@ export function useCapsules() {
     newlyOpened, 
     pendingCapsules, 
     openedCapsules, 
-    comingSoonCapsules 
+    comingSoonCapsules,
+    totalWords,
+    streakDays,
   } = storeToRefs(store);
   const checkInterval = ref<number | null>(null);
 
@@ -57,6 +59,8 @@ export function useCapsules() {
     pendingCapsules,
     openedCapsules,
     comingSoonCapsules,
+    totalWords,
+    streakDays,
     loadCapsules: store.loadCapsules,
     createCapsule: store.createCapsule,
     updateCapsule: store.updateCapsule,
@@ -65,6 +69,14 @@ export function useCapsules() {
     checkScheduledCapsules: store.checkScheduledCapsules,
     clearNewlyOpened: store.clearNewlyOpened,
     getCapsulesByCategory: store.getCapsulesByCategory,
+    getCapsulesByMood: store.getCapsulesByMood,
+    getGrowthOverview: store.getGrowthOverview,
+    getMoodDistribution: store.getMoodDistribution,
+    getMoodTrend: store.getMoodTrend,
+    getCategoryStats: store.getCategoryStats,
+    getWritingHabits: store.getWritingHabits,
+    getAchievements: store.getAchievements,
+    getGrowthStats: store.getGrowthStats,
     loadData,
     checkScheduled,
   };

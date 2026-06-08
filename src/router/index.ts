@@ -8,6 +8,7 @@ import Settings from '@/pages/Settings.vue';
 import LockScreen from '@/pages/LockScreen.vue';
 import ShareView from '@/pages/ShareView.vue';
 import Templates from '@/pages/Templates.vue';
+import Growth from '@/pages/Growth.vue';
 import { useSettingsStore } from '@/stores/settings';
 
 const routes = [
@@ -62,6 +63,12 @@ const routes = [
     path: '/templates',
     name: 'templates',
     component: Templates,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/growth',
+    name: 'growth',
+    component: Growth,
     meta: { requiresAuth: true },
   },
 ];

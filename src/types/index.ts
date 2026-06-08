@@ -138,6 +138,99 @@ export interface CapsuleStats {
   comingSoon: number;
 }
 
+export interface MoodDistribution {
+  mood: MoodType;
+  count: number;
+  percentage: number;
+}
+
+export interface MoodTrendPoint {
+  month: string;
+  moodIndex: number;
+  moodCounts: Record<MoodType, number>;
+}
+
+export interface CategoryStats {
+  category: CapsuleCategory;
+  count: number;
+  percentage: number;
+}
+
+export interface WritingDayData {
+  date: string;
+  count: number;
+  level: 0 | 1 | 2 | 3 | 4;
+}
+
+export type TimePeriod = 'dawn' | 'morning' | 'afternoon' | 'evening';
+
+export interface TimeDistribution {
+  period: TimePeriod;
+  label: string;
+  count: number;
+  percentage: number;
+}
+
+export interface WritingHabitData {
+  heatmap: WritingDayData[];
+  timeDistribution: TimeDistribution[];
+}
+
+export interface Achievement {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  unlockedAt: string | null;
+  isUnlocked: boolean;
+}
+
+export interface GrowthOverview {
+  totalWords: number;
+  totalCapsules: number;
+  streakDays: number;
+  firstCapsuleAgo: string;
+  firstCapsuleDate: string;
+}
+
+export interface GrowthStats {
+  overview: GrowthOverview;
+  moodDistribution: MoodDistribution[];
+  moodTrend: MoodTrendPoint[];
+  categoryStats: CategoryStats[];
+  writingHabits: WritingHabitData;
+  achievements: Achievement[];
+}
+
+export const MOOD_VALUES: Record<MoodType, number> = {
+  happy: 5,
+  excited: 5,
+  grateful: 4,
+  peaceful: 4,
+  confused: 2,
+  sad: 1,
+};
+
+export const ACHIEVEMENTS: Omit<Achievement, 'unlockedAt' | 'isUnlocked'>[] = [
+  { id: 'first_capsule', name: '初次相遇', description: '写下第一颗胶囊', icon: '🌱' },
+  { id: 'streak_7', name: '七日坚持', description: '连续记录7天', icon: '🔥' },
+  { id: 'streak_30', name: '月度达人', description: '连续记录30天', icon: '⭐' },
+  { id: 'capsules_10', name: '十全十美', description: '记录10颗胶囊', icon: '💯' },
+  { id: 'capsules_50', name: '记录者', description: '记录50颗胶囊', icon: '📚' },
+  { id: 'capsules_100', name: '百胶囊大师', description: '记录100颗胶囊', icon: '🏆' },
+  { id: 'words_1000', name: '千字作家', description: '累计写作1000字', icon: '✍️' },
+  { id: 'words_10000', name: '万字长文', description: '累计写作10000字', icon: '📝' },
+  { id: 'all_moods', name: '情绪收藏家', description: '体验过所有心情类型', icon: '🎨' },
+  { id: 'all_categories', name: '生活记录家', description: '使用过所有分类', icon: '🌈' },
+];
+
+export const TIME_PERIODS: { period: TimePeriod; label: string; range: [number, number] }[] = [
+  { period: 'dawn', label: '凌晨', range: [0, 6] },
+  { period: 'morning', label: '上午', range: [6, 12] },
+  { period: 'afternoon', label: '下午', range: [12, 18] },
+  { period: 'evening', label: '晚上', range: [18, 24] },
+];
+
 export interface CategoryInfo {
   id: CapsuleCategory;
   name: string;
