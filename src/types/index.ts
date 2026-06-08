@@ -154,6 +154,29 @@ export interface MoodInfo {
   color: string;
 }
 
+export interface FilterOptions {
+  moods: MoodType[];
+  categories: CapsuleCategory[];
+  status: ('pending' | 'opened' | 'comingSoon' | 'private')[];
+  createdAtStart: string | null;
+  createdAtEnd: string | null;
+  openAtStart: string | null;
+  openAtEnd: string | null;
+}
+
+export interface SearchResult {
+  capsule: Capsule;
+  matchScore: number;
+  matchType: 'title' | 'content' | 'tag';
+  matchedKeywords: string[];
+}
+
+export interface SearchHistoryItem {
+  id: string;
+  keyword: string;
+  timestamp: number;
+}
+
 export const CATEGORIES: CategoryInfo[] = [
   { id: 'dream', name: '梦想', icon: 'sparkles', color: 'text-lavender-300', bgColor: 'bg-lavender-100', emoji: '✨' },
   { id: 'family', name: '亲情', icon: 'heart', color: 'text-soft-pink-300', bgColor: 'bg-soft-pink-100', emoji: '💕' },

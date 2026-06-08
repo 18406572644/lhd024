@@ -1,31 +1,71 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { PenSquare, Sparkles, Gift } from 'lucide-vue-next';
+import { PenSquare, Sparkles, Gift, Filter } from 'lucide-vue-next';
 import CapsuleCard from '@/components/CapsuleCard.vue';
 import CapsuleStats from '@/components/CapsuleStats.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import SearchBox from '@/components/SearchBox.vue';
+import FilterPanel from '@/components/FilterPanel.vue';
+import FilterTags from '@/components/FilterTags.vue';
 import { useCapsules } from '@/composables/useCapsules';
 import { useGreeting } from '@/composables/useGreeting';
+import { useSearchFilter } from '@/composables/useSearchFilter';
 import { formatDate } from '@/utils/date';
+import type { FilterOptions, MoodType, CapsuleCategory } from '@/types';
 
 const router = useRouter();
 const { greeting, encouragement, formattedDate, currentHour } = useGreeting();
 const { capsules, stats, loading, newlyOpened, clearNewlyOpened, loadData } = useCapsules();
 
+const {
+  searchKeyword,
+  isSearching,
+  filters,
+  searchResults,
+  searchHistory,
+  hasActiveFilters,
+  setSearchKeyword,
+  clearSearch,
+  toggleMood,
+  toggleCategory,
+  toggleStatus,
+  setDateRange,
+  resetFilters,
+  clearAll,
+  clearSearchHistory,
+  removeSearchHistoryItem,
+} = useSearchFilter();
+
 const showNotification = ref(false);
+const showFilterPanel = ref(false);
 const activeTab = ref<'all' | 'pending' | 'opened'>('all');
 
-const filteredCapsules = computed(() => {
-  switch (activeTab.value) {
-    case 'pending':
-      return capsules.value.filter(c => !c.isOpened);
-    case 'opened':
-      return capsules.value.filter(c => c.isOpened);
-    default:
-      return capsules.value;
+const displayResults = computed(() => {
+  if (hasActiveFilters.value) {
+    return searchResults.value;
   }
+  
+  const baseCapsules = computed(() => {
+    switch (activeTab.value) {
+      case 'pending':
+        return capsules.value.filter(c => !c.isOpened);
+      case 'opened':
+        return capsules.value.filter(c => c.isOpened);
+      default:
+        return capsules.value;
+    }
+  }).value;
+  
+  return baseCapsules.map(capsule => ({
+    capsule,
+    matchScore: 0,
+    matchType: 'title' as const,
+    matchedKeywords: [],
+  }));
 });
+
+const resultCount = computed(() => displayResults.value.length);
 
 const bgGradient = computed(() => {
   const hour = currentHour.value;
@@ -55,6 +95,54 @@ function handleDelete(id: string) {
   if (confirm('确定要删除这个胶囊吗？')) {
     // delete logic handled in component
   }
+}
+
+function handleSearch(keyword: string) {
+  setSearchKeyword(keyword);
+}
+
+function handleFiltersUpdate(newFilters: FilterOptions) {
+  filters.value = { ...newFilters };
+}
+
+function handleResetFilters() {
+  resetFilters();
+}
+
+function handleRemoveMood(mood: MoodType) {
+  toggleMood(mood);
+}
+
+function handleRemoveCategory(category: CapsuleCategory) {
+  toggleCategory(category);
+}
+
+function handleRemoveStatus(status: 'pending' | 'opened' | 'comingSoon' | 'private') {
+  toggleStatus(status);
+}
+
+function handleRemoveDateRange(type: 'createdAt' | 'openAt') {
+  setDateRange(type, null, null);
+}
+
+function getEmptyStateConfig() {
+  if (hasActiveFilters.value) {
+    return {
+      icon: '🔍',
+      title: '没有找到匹配的胶囊',
+      description: '试试换个关键词或者调整筛选条件吧～',
+    };
+  }
+  
+  return {
+    icon: '💌',
+    title: '还没有胶囊',
+    description: activeTab.value === 'pending' 
+      ? '目前没有封存中的胶囊，去写一封给未来的信吧～' 
+      : activeTab.value === 'opened' 
+        ? '还没有已开启的胶囊，耐心等待时间的礼物吧～' 
+        : '开始写第一封给未来的信吧，让时间替你保管这份珍贵的记忆。',
+  };
 }
 </script>
 
@@ -119,14 +207,60 @@ function handleDelete(id: string) {
         <CapsuleStats :stats="stats" />
       </div>
 
-      <div class="mb-6">
+      <div class="mb-6 animate-fade-in" style="animation-delay: 0.1s;">
+        <div class="flex flex-col md:flex-row gap-4 mb-6">
+          <div class="flex-1">
+            <SearchBox
+              v-model="searchKeyword"
+              :is-searching="isSearching"
+              :search-history="searchHistory"
+              placeholder="搜索胶囊标题、内容、标签..."
+              @search="handleSearch"
+              @clear="clearSearch"
+              @clear-history="clearSearchHistory"
+              @remove-history="removeSearchHistoryItem"
+            />
+          </div>
+          <button
+            @click="showFilterPanel = true"
+            :class="[
+              'flex items-center justify-center gap-2 px-6 py-4 rounded-3xl font-medium transition-all duration-300',
+              hasActiveFilters
+                ? 'bg-soft-pink-200 text-warm-gray-800 shadow-soft'
+                : 'bg-white border border-warm-gray-200 text-warm-gray-600 hover:bg-warm-gray-50 shadow-soft'
+            ]"
+          >
+            <Filter class="w-5 h-5" />
+            <span>筛选</span>
+            <span
+              v-if="hasActiveFilters"
+              class="min-w-[20px] h-5 px-1.5 rounded-full bg-soft-pink-400 text-white text-xs flex items-center justify-center"
+            >
+              {{ hasActiveFilters ? '•' : '' }}
+            </span>
+          </button>
+        </div>
+
+        <div class="mb-4">
+          <FilterTags
+            :filters="filters"
+            :search-keyword="searchKeyword"
+            @remove-mood="handleRemoveMood"
+            @remove-category="handleRemoveCategory"
+            @remove-status="handleRemoveStatus"
+            @remove-date-range="handleRemoveDateRange"
+            @clear-all="clearAll"
+            @clear-search="clearSearch"
+          />
+        </div>
+
         <div class="flex items-center justify-between mb-4">
           <h2 class="font-serif-sc text-xl font-semibold text-warm-gray-800">
-            我的胶囊
+            {{ hasActiveFilters ? `搜索结果 (${resultCount})` : '我的胶囊' }}
           </h2>
         </div>
         
-        <div class="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-soft">
+        <div v-if="!hasActiveFilters" class="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-soft">
           <button
             v-for="tab in [
               { key: 'all', label: '全部' },
@@ -150,25 +284,34 @@ function handleDelete(id: string) {
           <div v-for="i in 6" :key="i" class="card-soft animate-pulse h-48"></div>
         </div>
         
-        <div v-else-if="filteredCapsules.length === 0" class="py-12">
+        <div v-else-if="displayResults.length === 0" class="py-12">
           <EmptyState
-            icon="💌"
-            title="还没有胶囊"
-            :description="activeTab === 'pending' ? '目前没有封存中的胶囊，去写一封给未来的信吧～' : activeTab === 'opened' ? '还没有已开启的胶囊，耐心等待时间的礼物吧～' : '开始写第一封给未来的信吧，让时间替你保管这份珍贵的记忆。'"
-            action-text="写第一个胶囊"
+            :icon="getEmptyStateConfig().icon"
+            :title="getEmptyStateConfig().title"
+            :description="getEmptyStateConfig().description"
+            :action-text="hasActiveFilters ? undefined : '写第一个胶囊'"
             @action="goToWrite"
           />
         </div>
         
         <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <CapsuleCard
-            v-for="capsule in filteredCapsules"
-            :key="capsule.id"
-            :capsule="capsule"
+            v-for="result in displayResults"
+            :key="result.capsule.id"
+            :capsule="result.capsule"
+            :highlight-keywords="result.matchedKeywords"
+            :match-type="result.matchScore > 0 ? result.matchType : undefined"
             @delete="handleDelete"
           />
         </div>
       </div>
+
+      <FilterPanel
+        v-model="showFilterPanel"
+        :filters="filters"
+        @update:filters="handleFiltersUpdate"
+        @reset="handleResetFilters"
+      />
     </div>
   </div>
 </template>

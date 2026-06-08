@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { Lock, Unlock, Calendar, Eye } from 'lucide-vue-next';
+import { Lock, Unlock, Calendar, Eye, Search } from 'lucide-vue-next';
 import type { Capsule } from '../types';
 import { CATEGORIES, MOODS } from '../types';
 import { formatDate, isPast, isComingSoon } from '../utils/date';
 import { useCountdown } from '../composables/useCapsules';
+import { useCapsulesStore } from '../stores/capsules';
 
 const props = defineProps<{
   capsule: Capsule;
   showActions?: boolean;
+  highlightKeywords?: string[];
+  matchType?: 'title' | 'content' | 'tag';
 }>();
 
 const emit = defineEmits<{
@@ -17,6 +20,7 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
+const store = useCapsulesStore();
 
 const categoryInfo = computed(() => 
   CATEGORIES.find(c => c.id === props.capsule.category) || CATEGORIES[5]
@@ -35,6 +39,38 @@ const isSoon = computed(() =>
 );
 
 const { formatted: countdownText } = useCountdown(props.capsule.openAt);
+
+const highlightedTitle = computed(() => {
+  if (!props.highlightKeywords || props.highlightKeywords.length === 0) {
+    return props.capsule.title;
+  }
+  return store.highlightText(props.capsule.title, props.highlightKeywords);
+});
+
+const highlightedContent = computed(() => {
+  if (!props.highlightKeywords || props.highlightKeywords.length === 0) {
+    return isOpened.value ? props.capsule.content : '这封信还没有到开启的时间，让我们一起耐心等待吧 ✨';
+  }
+  const content = isOpened.value ? props.capsule.content : '这封信还没有到开启的时间，让我们一起耐心等待吧 ✨';
+  return store.highlightText(content, props.highlightKeywords);
+});
+
+function getHighlightedTag(tag: string): string {
+  if (!props.highlightKeywords || props.highlightKeywords.length === 0) {
+    return tag;
+  }
+  return store.highlightText(tag, props.highlightKeywords);
+}
+
+const matchTypeLabel = computed(() => {
+  if (!props.matchType) return null;
+  const labels = {
+    title: '标题匹配',
+    content: '内容匹配',
+    tag: '标签匹配',
+  };
+  return labels[props.matchType];
+});
 
 function goToDetail() {
   router.push(`/capsule/${props.capsule.id}`);
@@ -84,13 +120,15 @@ function handleDelete(e: Event) {
         </div>
       </div>
 
-      <h3 class="font-serif-sc text-lg font-semibold text-warm-gray-800 mb-2 line-clamp-1 group-hover:text-soft-pink-400 transition-colors">
-        {{ capsule.title }}
-      </h3>
+      <div class="flex items-start gap-2 mb-2">
+        <h3 class="flex-1 font-serif-sc text-lg font-semibold text-warm-gray-800 line-clamp-1 group-hover:text-soft-pink-400 transition-colors" v-html="highlightedTitle"></h3>
+        <span v-if="matchTypeLabel" class="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-cream-yellow-100 text-cream-yellow-700 whitespace-nowrap">
+          <Search class="w-3 h-3" />
+          {{ matchTypeLabel }}
+        </span>
+      </div>
 
-      <p class="text-sm text-warm-gray-500 mb-3 line-clamp-2">
-        {{ isOpened ? capsule.content : '这封信还没有到开启的时间，让我们一起耐心等待吧 ✨' }}
-      </p>
+      <p class="text-sm text-warm-gray-500 mb-3 line-clamp-2" v-html="highlightedContent"></p>
 
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -117,9 +155,8 @@ function handleDelete(e: Event) {
           v-for="tag in capsule.tags.slice(0, 3)"
           :key="tag"
           class="text-xs px-2 py-0.5 rounded-full bg-warm-gray-100 text-warm-gray-500"
-        >
-          #{{ tag }}
-        </span>
+          v-html="`#${getHighlightedTag(tag)}`"
+        ></span>
       </div>
     </div>
   </div>
