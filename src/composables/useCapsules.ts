@@ -2,7 +2,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useCapsulesStore } from '../stores/capsules';
 import { getCountdown, formatCountdown } from '../utils/date';
-import type { Capsule } from '../types';
+import type { Capsule, Attachment } from '../types';
 
 export function useCapsules() {
   const store = useCapsulesStore();
@@ -109,11 +109,14 @@ export function useCapsuleOperation() {
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  async function createCapsule(data: Omit<Capsule, 'id' | 'createdAt' | 'isOpened'>) {
+  async function createCapsule(
+    data: Omit<Capsule, 'id' | 'createdAt' | 'isOpened' | 'attachments'>,
+    attachments?: { file: File; type: 'image' | 'audio' | 'video'; duration?: number; editConfig?: Attachment['editConfig'] }[]
+  ) {
     loading.value = true;
     error.value = null;
     try {
-      return await store.createCapsule(data);
+      return await store.createCapsule(data, attachments);
     } catch (e) {
       error.value = '创建胶囊失败，请重试';
       throw e;

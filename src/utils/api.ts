@@ -1,7 +1,8 @@
-import type { Capsule, Settings, CapsuleStats, CapsuleCategory } from '../types';
+import type { Capsule, Settings, CapsuleStats, CapsuleCategory, Attachment } from '../types';
 import { getStorage, setStorage } from './storage';
 import { encrypt, decrypt, generateId } from './encrypt';
 import { isPast, isComingSoon } from './date';
+import { saveAttachment, deleteAttachmentsByCapsuleId } from './attachmentStorage';
 
 const STORAGE_KEYS = {
   CAPSULES: 'time_capsule_capsules',
@@ -57,6 +58,7 @@ function getMockCapsules(): Capsule[] {
       isOpened: false,
       isPrivate: true,
       isPublic: false,
+      attachments: [],
     },
     {
       id: generateId(),
@@ -70,6 +72,7 @@ function getMockCapsules(): Capsule[] {
       isOpened: false,
       isPrivate: false,
       isPublic: true,
+      attachments: [],
     },
     {
       id: generateId(),
@@ -83,6 +86,7 @@ function getMockCapsules(): Capsule[] {
       isOpened: false,
       isPrivate: true,
       isPublic: false,
+      attachments: [],
     },
     {
       id: generateId(),
@@ -96,6 +100,7 @@ function getMockCapsules(): Capsule[] {
       isOpened: true,
       isPrivate: false,
       isPublic: true,
+      attachments: [],
     },
     {
       id: generateId(),
@@ -109,6 +114,7 @@ function getMockCapsules(): Capsule[] {
       isOpened: true,
       isPrivate: true,
       isPublic: false,
+      attachments: [],
     },
   ];
 
@@ -171,7 +177,12 @@ export async function getCapsuleById(id: string): Promise<Capsule | null> {
   return decryptCapsuleContent(capsule);
 }
 
-export async function createCapsule(data: Omit<Capsule, 'id' | 'createdAt' | 'isOpened' | 'isPublic'> & { isPublic?: boolean }): Promise<Capsule> {
+export async function createCapsule(
+  data: Omit<Capsule, 'id' | 'createdAt' | 'isOpened' | 'isPublic' | 'attachments'> & { 
+    isPublic?: boolean;
+    attachments?: { file: File; type: 'image' | 'audio' | 'video'; duration?: number }[];
+  }
+): Promise<Capsule> {
   await delay();
   const capsules = getStorage<Capsule[]>(STORAGE_KEYS.CAPSULES, []);
   
@@ -181,7 +192,15 @@ export async function createCapsule(data: Omit<Capsule, 'id' | 'createdAt' | 'is
     createdAt: new Date().toISOString(),
     isOpened: false,
     isPublic: data.isPublic ?? false,
+    attachments: [],
   };
+  
+  if (data.attachments && data.attachments.length > 0) {
+    for (const att of data.attachments) {
+      const attachment = await saveAttachment(newCapsule.id, att.file, att.type, att.duration);
+      newCapsule.attachments.push(attachment);
+    }
+  }
   
   const encrypted = encryptCapsuleContent(newCapsule);
   capsules.unshift(encrypted);
@@ -216,6 +235,8 @@ export async function deleteCapsule(id: string): Promise<boolean> {
   const filtered = capsules.filter(c => c.id !== id);
   
   if (filtered.length === capsules.length) return false;
+  
+  await deleteAttachmentsByCapsuleId(id);
   
   setStorage(STORAGE_KEYS.CAPSULES, filtered);
   return true;

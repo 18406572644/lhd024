@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowLeft, Lock, Unlock, Trash2, Calendar, Clock, Share2, Heart, Gift, Image } from 'lucide-vue-next';
+import { ArrowLeft, Lock, Unlock, Trash2, Calendar, Clock, Share2, Heart, Gift, Image, Paperclip } from 'lucide-vue-next';
 import CountdownTimer from '@/components/CountdownTimer.vue';
 import LetterPaper from '@/components/LetterPaper.vue';
 import PasswordModal from '@/components/PasswordModal.vue';
 import PostcardGenerator from '@/components/PostcardGenerator.vue';
+import ImageGallery from '@/components/attachment/ImageGallery.vue';
+import AudioPlayer from '@/components/attachment/AudioPlayer.vue';
+import VideoPlayer from '@/components/attachment/VideoPlayer.vue';
 import { useCapsuleOperation } from '@/composables/useCapsules';
 import { useSettingsStore } from '@/stores/settings';
-import { CATEGORIES, MOODS } from '../types';
+import { CATEGORIES, MOODS, IMAGE_FILTERS } from '../types';
 import { formatDate, formatDateTime, isPast } from '../utils/date';
-import type { Capsule } from '../types';
+import { getAttachmentDataUrl, formatFileSize, formatDuration } from '../utils/attachmentStorage';
+import type { Capsule, Attachment } from '../types';
 import * as api from '../utils/api';
 
 const route = useRoute();
@@ -24,6 +28,43 @@ const showDeleteConfirm = ref(false);
 const isOpening = ref(false);
 const isRevealed = ref(false);
 const showPostcardGenerator = ref(false);
+
+interface AttachmentWithData extends Attachment {
+  dataUrl: string;
+}
+
+const attachmentDataUrls = ref<Map<string, string>>(new Map());
+const loadingAttachments = ref(true);
+const showImageGallery = ref(false);
+const galleryStartIndex = ref(0);
+
+const imageAttachments = computed(() => 
+  capsule.value?.attachments.filter(a => a.type === 'image') || []
+);
+
+const audioAttachments = computed(() => 
+  capsule.value?.attachments.filter(a => a.type === 'audio') || []
+);
+
+const videoAttachments = computed(() => 
+  capsule.value?.attachments.filter(a => a.type === 'video') || []
+);
+
+const hasAttachments = computed(() => 
+  capsule.value?.attachments && capsule.value.attachments.length > 0
+);
+
+const attachmentsWithData = computed<AttachmentWithData[]>(() => {
+  if (!capsule.value?.attachments) return [];
+  return capsule.value.attachments.map(att => ({
+    ...att,
+    dataUrl: attachmentDataUrls.value.get(att.id) || '',
+  }));
+});
+
+const imageAttachmentsWithData = computed(() => 
+  attachmentsWithData.value.filter(a => a.type === 'image')
+);
 
 const categoryInfo = computed(() => 
   capsule.value ? CATEGORIES.find(c => c.id === capsule.value!.category) : null
@@ -41,6 +82,36 @@ const needsPassword = computed(() =>
   capsule.value?.isPrivate && settingsStore.hasPassword && !isRevealed.value
 );
 
+async function loadAttachmentData() {
+  if (!capsule.value?.attachments) return;
+  
+  loadingAttachments.value = true;
+  const dataUrls = new Map<string, string>();
+  
+  for (const attachment of capsule.value.attachments) {
+    try {
+      const dataUrl = await getAttachmentDataUrl(attachment.id);
+      dataUrls.set(attachment.id, dataUrl);
+    } catch (e) {
+      console.error(`Failed to load attachment ${attachment.id}:`, e);
+    }
+  }
+  
+  attachmentDataUrls.value = dataUrls;
+  loadingAttachments.value = false;
+}
+
+function openGallery(startIndex: number = 0) {
+  galleryStartIndex.value = startIndex;
+  showImageGallery.value = true;
+}
+
+function getFilterStyle(config?: Attachment['editConfig']): string {
+  if (!config?.filter) return 'none';
+  const filter = IMAGE_FILTERS.find(f => f.id === config.filter);
+  return filter?.cssFilter || 'none';
+}
+
 onMounted(async () => {
   const id = route.params.id as string;
   const data = await api.getCapsuleById(id);
@@ -49,6 +120,7 @@ onMounted(async () => {
     if (canOpen.value && !data.isPrivate) {
       isRevealed.value = true;
     }
+    await loadAttachmentData();
   } else {
     router.push('/');
   }
@@ -258,6 +330,66 @@ function goBack() {
               :category-emoji="categoryInfo?.emoji"
             />
 
+            <div v-if="hasAttachments && isRevealed" class="space-y-6 animate-fade-in" style="animation-delay: 0.3s">
+              <div class="flex items-center gap-2 mb-4">
+                <Paperclip class="w-5 h-5 text-soft-pink-400" />
+                <h3 class="font-serif-sc text-lg font-semibold text-warm-gray-800">附件</h3>
+              </div>
+
+              <div v-if="loadingAttachments" class="flex justify-center py-8">
+                <div class="w-8 h-8 border-4 border-soft-pink-200 border-t-soft-pink-400 rounded-full animate-spin"></div>
+              </div>
+
+              <template v-else>
+                <div v-if="imageAttachmentsWithData.length > 0" class="space-y-4">
+                  <div class="grid grid-cols-3 gap-2">
+                    <div
+                      v-for="(image, index) in imageAttachmentsWithData"
+                      :key="image.id"
+                      @click="openGallery(index)"
+                      class="relative aspect-square rounded-xl overflow-hidden cursor-pointer group hover:scale-[1.02] transition-transform"
+                    >
+                      <img
+                        :src="image.dataUrl"
+                        :alt="image.name"
+                        class="w-full h-full object-cover"
+                        :style="{ filter: getFilterStyle(image.editConfig) }"
+                      />
+                      <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
+                      <div v-if="image.editConfig?.filter" class="absolute top-2 right-2 px-2 py-1 rounded-full bg-black/50 text-white text-xs">
+                        已编辑
+                      </div>
+                    </div>
+                  </div>
+                  <p class="text-xs text-center text-warm-gray-400">
+                    点击图片查看大图 · {{ imageAttachmentsWithData.length }} 张图片
+                  </p>
+                </div>
+
+                <div v-if="audioAttachments.length > 0" class="space-y-3">
+                  <AudioPlayer
+                    v-for="audio in capsule.attachments.filter(a => a.type === 'audio')"
+                    :key="audio.id"
+                    :attachment="audio"
+                  />
+                </div>
+
+                <div v-if="videoAttachments.length > 0" class="space-y-3">
+                  <VideoPlayer
+                    v-for="video in capsule.attachments.filter(a => a.type === 'video')"
+                    :key="video.id"
+                    :attachment="video"
+                  />
+                </div>
+
+                <div class="text-xs text-warm-gray-400 flex items-center justify-center gap-2">
+                  <span>共 {{ capsule.attachments.length }} 个附件</span>
+                  <span>·</span>
+                  <span>{{ formatFileSize(capsule.attachments.reduce((sum, a) => sum + a.size, 0)) }}</span>
+                </div>
+              </template>
+            </div>
+
             <div class="flex flex-wrap justify-center gap-3 mt-8">
               <span
                 v-for="tag in capsule.tags"
@@ -280,5 +412,19 @@ function goBack() {
         </Transition>
       </div>
     </div>
+
+    <Transition name="fade">
+      <div 
+        v-if="showImageGallery && imageAttachments.length > 0" 
+        class="fixed inset-0 z-50 flex items-center justify-center bg-warm-gray-900/95 backdrop-blur-sm"
+      >
+        <ImageGallery
+          :attachments="capsule.attachments"
+          :show="showImageGallery"
+          :initial-index="galleryStartIndex"
+          @close="showImageGallery = false"
+        />
+      </div>
+    </Transition>
   </div>
 </template>

@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { Lock, Unlock, Shield, Clock, Trash2, Eye, EyeOff, Check, AlertTriangle } from 'lucide-vue-next';
+import { Lock, Unlock, Shield, Clock, Trash2, Eye, EyeOff, Check, AlertTriangle, HardDrive } from 'lucide-vue-next';
 import { useSettingsStore } from '@/stores/settings';
 import { usePassword } from '@/composables/usePassword';
 import { useCapsulesStore } from '@/stores/capsules';
 import { clearStorage } from '@/utils/storage';
+import StorageManager from '@/components/attachment/StorageManager.vue';
 
 const settingsStore = useSettingsStore();
 const { password, confirmPassword, error, loading, showPassword, setNewPassword, changePassword, removeCurrentPassword, lockApp } = usePassword();
 const capsulesStore = useCapsulesStore();
 
-const activeTab = ref<'password' | 'privacy' | 'danger'>('password');
+const activeTab = ref<'password' | 'privacy' | 'storage' | 'danger'>('password');
 const showChangePassword = ref(false);
 const oldPassword = ref('');
 const showOldPassword = ref(false);
@@ -116,10 +117,11 @@ watch(showChangePassword, (val) => {
           v-for="tab in [
             { key: 'password', label: '密码设置', icon: Lock },
             { key: 'privacy', label: '隐私保护', icon: Shield },
+            { key: 'storage', label: '存储管理', icon: HardDrive },
             { key: 'danger', label: '危险操作', icon: AlertTriangle },
           ]"
           :key="tab.key"
-          @click="activeTab = tab.key as 'password' | 'privacy' | 'danger'"
+          @click="activeTab = tab.key as 'password' | 'privacy' | 'storage' | 'danger'"
           :class="[
             'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 whitespace-nowrap',
             activeTab === tab.key
@@ -362,6 +364,14 @@ watch(showChangePassword, (val) => {
               </p>
             </div>
           </div>
+        </template>
+
+        <template v-else-if="activeTab === 'storage'">
+          <h3 class="font-serif-sc text-lg font-semibold text-warm-gray-800 mb-4 flex items-center gap-2">
+            <HardDrive class="w-5 h-5 text-sky-blue-400" />
+            存储管理
+          </h3>
+          <StorageManager />
         </template>
 
         <template v-else-if="activeTab === 'danger'">

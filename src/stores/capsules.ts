@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Capsule, CapsuleStats, CapsuleCategory } from '../types';
+import type { Capsule, CapsuleStats, CapsuleCategory, Attachment } from '../types';
 import * as api from '../utils/api';
 
 export const useCapsulesStore = defineStore('capsules', () => {
@@ -49,8 +49,11 @@ export const useCapsulesStore = defineStore('capsules', () => {
     return await api.getCapsuleById(id);
   }
 
-  async function createCapsule(data: Omit<Capsule, 'id' | 'createdAt' | 'isOpened'>) {
-    const newCapsule = await api.createCapsule(data);
+  async function createCapsule(
+    data: Omit<Capsule, 'id' | 'createdAt' | 'isOpened' | 'attachments'>,
+    attachments?: { file: File; type: 'image' | 'audio' | 'video'; duration?: number; editConfig?: Attachment['editConfig'] }[]
+  ) {
+    const newCapsule = await api.createCapsule({ ...data, attachments });
     capsules.value.unshift(newCapsule);
     await loadStats();
     return newCapsule;

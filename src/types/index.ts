@@ -2,6 +2,57 @@ export type CapsuleCategory = 'dream' | 'family' | 'friendship' | 'love' | 'grow
 
 export type MoodType = 'happy' | 'sad' | 'peaceful' | 'excited' | 'grateful' | 'confused';
 
+export type AttachmentType = 'image' | 'audio' | 'video';
+
+export interface ImageFilter {
+  id: string;
+  name: string;
+  cssFilter: string;
+}
+
+export interface WatermarkConfig {
+  text: string;
+  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
+  opacity: number;
+  fontSize: number;
+  color: string;
+}
+
+export interface ImageEditConfig {
+  crop?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  filter?: string;
+  watermark?: WatermarkConfig;
+  rotation: number;
+}
+
+export interface Attachment {
+  id: string;
+  capsuleId: string;
+  type: AttachmentType;
+  name: string;
+  size: number;
+  mimeType: string;
+  duration?: number;
+  createdAt: string;
+  editConfig?: ImageEditConfig;
+}
+
+export interface StorageStats {
+  totalSize: number;
+  usedSize: number;
+  availableSize: number;
+  attachmentCount: number;
+  imageCount: number;
+  audioCount: number;
+  videoCount: number;
+  usagePercentage: number;
+}
+
 export interface Capsule {
   id: string;
   title: string;
@@ -15,6 +66,7 @@ export interface Capsule {
   email?: string;
   isPrivate: boolean;
   isPublic: boolean;
+  attachments: Attachment[];
 }
 
 export type PostcardTemplate = 'letter' | 'polaroid' | 'vintage' | 'minimal';
@@ -161,3 +213,33 @@ export const ENCOURAGEMENTS = [
   '愿你被世界温柔以待 🌷',
   '记录此刻，寄语未来 📮',
 ];
+
+export const IMAGE_FILTERS: ImageFilter[] = [
+  { id: 'none', name: '原图', cssFilter: 'none' },
+  { id: 'grayscale', name: '黑白', cssFilter: 'grayscale(100%)' },
+  { id: 'sepia', name: '复古', cssFilter: 'sepia(80%)' },
+  { id: 'brightness', name: '明亮', cssFilter: 'brightness(120%)' },
+  { id: 'contrast', name: '对比', cssFilter: 'contrast(120%)' },
+  { id: 'saturate', name: '饱和', cssFilter: 'saturate(140%)' },
+  { id: 'warm', name: '暖色', cssFilter: 'sepia(30%) saturate(120%)' },
+  { id: 'cool', name: '冷色', cssFilter: 'hue-rotate(200deg) saturate(80%)' },
+  { id: 'vintage', name: '怀旧', cssFilter: 'sepia(50%) contrast(90%) brightness(90%)' },
+];
+
+export const WATERMARK_POSITIONS = [
+  { id: 'top-left', name: '左上' },
+  { id: 'top-right', name: '右上' },
+  { id: 'bottom-left', name: '左下' },
+  { id: 'bottom-right', name: '右下' },
+  { id: 'center', name: '居中' },
+] as const;
+
+export const ATTACHMENT_LIMITS = {
+  MAX_IMAGES: 9,
+  MAX_AUDIO_DURATION: 300,
+  MAX_VIDEO_DURATION: 15,
+  MAX_IMAGE_SIZE: 10 * 1024 * 1024,
+  MAX_AUDIO_SIZE: 50 * 1024 * 1024,
+  MAX_VIDEO_SIZE: 100 * 1024 * 1024,
+  MAX_TOTAL_STORAGE: 500 * 1024 * 1024,
+} as const;

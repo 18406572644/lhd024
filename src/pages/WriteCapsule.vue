@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Calendar, Tag, Lock, Unlock, Send, Sparkles, Heart, Globe } from 'lucide-vue-next';
-import type { CapsuleCategory, MoodType } from '../types';
-import { CATEGORIES, MOODS, PRESET_TIMES } from '../types';
+import { Calendar, Tag, Lock, Unlock, Send, Sparkles, Heart, Globe, Image, Mic, Video, X, Edit2, AlertTriangle, Play } from 'lucide-vue-next';
+import type { CapsuleCategory, MoodType, Attachment, ImageEditConfig } from '../types';
+import { CATEGORIES, MOODS, PRESET_TIMES, ATTACHMENT_LIMITS, IMAGE_FILTERS } from '../types';
 import { useCapsuleOperation } from '../composables/useCapsules';
 import { addMonths, formatDate, dayjs } from '../utils/date';
+import { validateFileSize, formatFileSize, formatDuration, getStorageStats } from '../utils/attachmentStorage';
+import ImageEditor from '../components/attachment/ImageEditor.vue';
+import AudioRecorder from '../components/attachment/AudioRecorder.vue';
+import VideoRecorder from '../components/attachment/VideoRecorder.vue';
 
 const router = useRouter();
 const { createCapsule, loading } = useCapsuleOperation();
@@ -21,6 +25,33 @@ const isPrivate = ref(false);
 const isPublic = ref(false);
 const email = ref('');
 const showSuccess = ref(false);
+
+interface PendingAttachment {
+  file: File;
+  type: 'image' | 'audio' | 'video';
+  previewUrl: string;
+  duration?: number;
+  editConfig?: ImageEditConfig;
+}
+
+const pendingAttachments = ref<PendingAttachment[]>([]);
+const activeAttachmentType = ref<'image' | 'audio' | 'video' | null>(null);
+const showImageEditor = ref(false);
+const editingImageIndex = ref(-1);
+const editingImageUrl = ref('');
+const storageWarning = ref<string | null>(null);
+
+const imageCount = computed(() => pendingAttachments.value.filter(a => a.type === 'image').length);
+const audioCount = computed(() => pendingAttachments.value.filter(a => a.type === 'audio').length);
+const videoCount = computed(() => pendingAttachments.value.filter(a => a.type === 'video').length);
+
+const canAddImage = computed(() => imageCount.value < ATTACHMENT_LIMITS.MAX_IMAGES);
+const canAddAudio = computed(() => audioCount.value === 0);
+const canAddVideo = computed(() => videoCount.value === 0);
+
+const totalAttachmentSize = computed(() => 
+  pendingAttachments.value.reduce((sum, a) => sum + a.file.size, 0)
+);
 
 const customDate = computed(() => {
   const date = new Date();
@@ -66,6 +97,13 @@ async function handleSubmit() {
     const openDate = new Date(openAt.value);
     openDate.setHours(9, 0, 0, 0);
     
+    const attachments = pendingAttachments.value.map(a => ({
+      file: a.file,
+      type: a.type,
+      duration: a.duration,
+      editConfig: a.editConfig,
+    }));
+    
     await createCapsule({
       title: title.value.trim(),
       content: content.value.trim(),
@@ -76,8 +114,9 @@ async function handleSubmit() {
       isPrivate: isPrivate.value,
       isPublic: isPublic.value,
       email: email.value || undefined,
-    });
+    }, attachments);
     
+    cleanupAttachments();
     showSuccess.value = true;
     
     setTimeout(() => {
@@ -88,15 +127,147 @@ async function handleSubmit() {
   }
 }
 
+async function checkStorageSpace(fileSize: number): Promise<boolean> {
+  try {
+    const stats = await getStorageStats();
+    const projectedUsage = stats.usedSize + fileSize + totalAttachmentSize.value;
+    if (projectedUsage > ATTACHMENT_LIMITS.MAX_TOTAL_STORAGE) {
+      const available = ATTACHMENT_LIMITS.MAX_TOTAL_STORAGE - stats.usedSize;
+      storageWarning.value = `存储空间不足！剩余 ${formatFileSize(available)}，请先清理部分附件。`;
+      setTimeout(() => { storageWarning.value = null; }, 5000);
+      return false;
+    }
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+async function handleImageUpload(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const files = input.files;
+  if (!files || files.length === 0) return;
+
+  const remainingSlots = ATTACHMENT_LIMITS.MAX_IMAGES - imageCount.value;
+  const filesToProcess = Array.from(files).slice(0, remainingSlots);
+
+  for (const file of filesToProcess) {
+    const validation = validateFileSize(file, 'image');
+    if (!validation.valid) {
+      alert(validation.message);
+      continue;
+    }
+
+    const hasSpace = await checkStorageSpace(file.size);
+    if (!hasSpace) continue;
+
+    const previewUrl = URL.createObjectURL(file);
+    pendingAttachments.value.push({
+      file,
+      type: 'image',
+      previewUrl,
+      editConfig: { rotation: 0 },
+    });
+  }
+
+  input.value = '';
+}
+
+function openImageEditor(index: number) {
+  const attachment = pendingAttachments.value[index];
+  if (attachment.type !== 'image') return;
+  
+  editingImageIndex.value = index;
+  editingImageUrl.value = attachment.previewUrl;
+  showImageEditor.value = true;
+}
+
+function handleImageEditSave(config: ImageEditConfig, editedFile: File) {
+  if (editingImageIndex.value === -1) return;
+
+  const attachment = pendingAttachments.value[editingImageIndex.value];
+  if (attachment.previewUrl) {
+    URL.revokeObjectURL(attachment.previewUrl);
+  }
+
+  const newPreviewUrl = URL.createObjectURL(editedFile);
+  pendingAttachments.value[editingImageIndex.value] = {
+    ...attachment,
+    file: editedFile,
+    previewUrl: newPreviewUrl,
+    editConfig: config,
+  };
+
+  showImageEditor.value = false;
+  editingImageIndex.value = -1;
+  editingImageUrl.value = '';
+}
+
+function handleImageEditCancel() {
+  showImageEditor.value = false;
+  editingImageIndex.value = -1;
+  editingImageUrl.value = '';
+}
+
+function handleAudioSave(file: File, duration: number) {
+  const previewUrl = URL.createObjectURL(file);
+  pendingAttachments.value.push({
+    file,
+    type: 'audio',
+    previewUrl,
+    duration,
+  });
+  activeAttachmentType.value = null;
+}
+
+function handleVideoSave(file: File, duration: number) {
+  const previewUrl = URL.createObjectURL(file);
+  pendingAttachments.value.push({
+    file,
+    type: 'video',
+    previewUrl,
+    duration,
+  });
+  activeAttachmentType.value = null;
+}
+
+function removeAttachment(index: number) {
+  const attachment = pendingAttachments.value[index];
+  if (attachment.previewUrl) {
+    URL.revokeObjectURL(attachment.previewUrl);
+  }
+  pendingAttachments.value.splice(index, 1);
+}
+
+function getFilterStyle(config?: ImageEditConfig): string {
+  if (!config?.filter) return 'none';
+  return IMAGE_FILTERS.find(f => f.id === config.filter)?.cssFilter || 'none';
+}
+
+function cleanupAttachments() {
+  for (const attachment of pendingAttachments.value) {
+    if (attachment.previewUrl) {
+      URL.revokeObjectURL(attachment.previewUrl);
+    }
+  }
+  pendingAttachments.value = [];
+}
+
 function handleCancel() {
-  if (title.value || content.value) {
-    if (confirm('确定要离开吗？当前内容将不会保存。')) {
+  if (title.value || content.value || pendingAttachments.value.length > 0) {
+    if (confirm('确定要离开吗？当前内容和附件将不会保存。')) {
+      cleanupAttachments();
       router.push('/');
     }
   } else {
+    cleanupAttachments();
     router.push('/');
   }
 }
+
+onMounted(async () => {
+  await checkStorageSpace(0);
+});
 </script>
 
 <template>
@@ -246,6 +417,162 @@ function handleCancel() {
           </div>
         </div>
 
+        <div class="card-soft animate-slide-up" style="animation-delay: 0.55s">
+          <label class="block text-sm font-medium text-warm-gray-700 mb-3">
+            <Image class="w-4 h-4 inline-block mr-1 text-soft-pink-400" />
+            多媒体附件
+          </label>
+          
+          <Transition name="fade">
+            <div 
+              v-if="storageWarning" 
+              class="mb-4 p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-2"
+            >
+              <AlertTriangle class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <p class="text-sm text-amber-700">{{ storageWarning }}</p>
+            </div>
+          </Transition>
+
+          <div class="flex gap-3 mb-4">
+            <label class="flex-1 flex flex-col items-center gap-2 p-4 border-2 border-dashed border-warm-gray-200 rounded-2xl cursor-pointer hover:border-soft-pink-300 hover:bg-soft-pink-50 transition-all" :class="{ 'opacity-50 cursor-not-allowed': !canAddImage }">
+              <Image class="w-6 h-6 text-soft-pink-400" />
+              <span class="text-xs text-warm-gray-600">图片</span>
+              <span class="text-xs text-warm-gray-400">{{ imageCount }}/{{ ATTACHMENT_LIMITS.MAX_IMAGES }}</span>
+              <input
+                v-if="canAddImage"
+                type="file"
+                accept="image/*"
+                multiple
+                class="hidden"
+                @change="handleImageUpload"
+              />
+            </label>
+
+            <button
+              type="button"
+              @click="activeAttachmentType = 'audio'"
+              :disabled="!canAddAudio"
+              class="flex-1 flex flex-col items-center gap-2 p-4 border-2 border-dashed border-warm-gray-200 rounded-2xl hover:border-cream-yellow-300 hover:bg-cream-yellow-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Mic class="w-6 h-6 text-cream-yellow-500" />
+              <span class="text-xs text-warm-gray-600">语音</span>
+              <span class="text-xs text-warm-gray-400">{{ audioCount }}/1 · 5分钟</span>
+            </button>
+
+            <button
+              type="button"
+              @click="activeAttachmentType = 'video'"
+              :disabled="!canAddVideo"
+              class="flex-1 flex flex-col items-center gap-2 p-4 border-2 border-dashed border-warm-gray-200 rounded-2xl hover:border-sky-blue-300 hover:bg-sky-blue-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Video class="w-6 h-6 text-sky-blue-400" />
+              <span class="text-xs text-warm-gray-600">视频</span>
+              <span class="text-xs text-warm-gray-400">{{ videoCount }}/1 · 15秒</span>
+            </button>
+          </div>
+
+          <div v-if="pendingAttachments.length > 0" class="space-y-4">
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-warm-gray-500">
+                已添加 {{ pendingAttachments.length }} 个附件
+                <span v-if="totalAttachmentSize > 0" class="text-warm-gray-400">
+                  · {{ formatFileSize(totalAttachmentSize) }}
+                </span>
+              </span>
+            </div>
+
+            <div v-if="imageCount > 0" class="grid grid-cols-3 gap-2">
+              <div
+                v-for="(attachment, index) in pendingAttachments.filter(a => a.type === 'image')"
+                :key="index"
+                class="relative aspect-square rounded-xl overflow-hidden group"
+              >
+                <img
+                  :src="attachment.previewUrl"
+                  alt="Preview"
+                  class="w-full h-full object-cover"
+                  :style="{ filter: getFilterStyle(attachment.editConfig) }"
+                />
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                  <button
+                    type="button"
+                    @click="openImageEditor(pendingAttachments.indexOf(attachment))"
+                    class="p-2 rounded-full bg-white/90 text-warm-gray-700 hover:bg-white transition-colors"
+                  >
+                    <Edit2 class="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    @click="removeAttachment(pendingAttachments.indexOf(attachment))"
+                    class="p-2 rounded-full bg-red-500/90 text-white hover:bg-red-500 transition-colors"
+                  >
+                    <X class="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="audioCount > 0" class="space-y-2">
+              <div
+                v-for="(attachment, index) in pendingAttachments.filter(a => a.type === 'audio')"
+                :key="index"
+                class="flex items-center gap-3 p-3 bg-cream-yellow-50 rounded-xl"
+              >
+                <div class="w-10 h-10 rounded-full bg-cream-yellow-100 flex items-center justify-center flex-shrink-0">
+                  <Mic class="w-5 h-5 text-cream-yellow-600" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-warm-gray-800 truncate">语音录音</p>
+                  <p class="text-xs text-warm-gray-500">
+                    {{ attachment.duration ? formatDuration(attachment.duration) : '' }} · 
+                    {{ formatFileSize(attachment.file.size) }}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  @click="removeAttachment(pendingAttachments.indexOf(attachment))"
+                  class="p-2 rounded-full hover:bg-red-100 text-warm-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <X class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div v-if="videoCount > 0" class="space-y-2">
+              <div
+                v-for="(attachment, index) in pendingAttachments.filter(a => a.type === 'video')"
+                :key="index"
+                class="relative rounded-xl overflow-hidden"
+              >
+                <video
+                  :src="attachment.previewUrl"
+                  class="w-full h-40 object-cover"
+                  muted
+                  playsinline
+                />
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <div class="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center">
+                    <Play class="w-6 h-6 text-white ml-1" />
+                  </div>
+                </div>
+                <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-3 flex items-center justify-between">
+                  <span class="text-white text-xs">
+                    {{ attachment.duration ? formatDuration(attachment.duration) : '' }} · 
+                    {{ formatFileSize(attachment.file.size) }}
+                  </span>
+                  <button
+                    type="button"
+                    @click="removeAttachment(pendingAttachments.indexOf(attachment))"
+                    class="p-1.5 rounded-full bg-red-500/90 text-white hover:bg-red-500 transition-colors"
+                  >
+                    <X class="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="card-soft animate-slide-up" style="animation-delay: 0.6s">
           <label class="block text-sm font-medium text-warm-gray-700 mb-3">
             <Calendar class="w-4 h-4 inline-block mr-1 text-cream-yellow-400" />
@@ -369,5 +696,50 @@ function handleCancel() {
         </div>
       </form>
     </div>
+
+    <Transition name="fade">
+      <div 
+        v-if="showImageEditor" 
+        class="fixed inset-0 z-50 flex items-center justify-center bg-warm-gray-900/70 backdrop-blur-sm p-4"
+      >
+        <div class="w-full max-w-4xl max-h-[90vh] overflow-auto">
+          <ImageEditor
+            v-if="editingImageUrl"
+            :show="showImageEditor"
+            :image-url="editingImageUrl"
+            @save="handleImageEditSave"
+            @close="handleImageEditCancel"
+          />
+        </div>
+      </div>
+    </Transition>
+
+    <Transition name="fade">
+      <div 
+        v-if="activeAttachmentType === 'audio'" 
+        class="fixed inset-0 z-50 flex items-center justify-center bg-warm-gray-900/70 backdrop-blur-sm p-4"
+      >
+        <div class="w-full max-w-lg">
+          <AudioRecorder
+            @save="handleAudioSave"
+            @cancel="activeAttachmentType = null"
+          />
+        </div>
+      </div>
+    </Transition>
+
+    <Transition name="fade">
+      <div 
+        v-if="activeAttachmentType === 'video'" 
+        class="fixed inset-0 z-50 flex items-center justify-center bg-warm-gray-900/70 backdrop-blur-sm p-4"
+      >
+        <div class="w-full max-w-lg">
+          <VideoRecorder
+            @save="handleVideoSave"
+            @cancel="activeAttachmentType = null"
+          />
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
