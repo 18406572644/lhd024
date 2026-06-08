@@ -14,7 +14,61 @@ export interface Capsule {
   isOpened: boolean;
   email?: string;
   isPrivate: boolean;
+  isPublic: boolean;
 }
+
+export type PostcardTemplate = 'letter' | 'polaroid' | 'vintage' | 'minimal';
+export type ContentDisplayMode = 'full' | 'summary' | 'title';
+
+export interface PostcardConfig {
+  template: PostcardTemplate;
+  displayMode: ContentDisplayMode;
+  showQRCode: boolean;
+  customBackground?: string;
+  decorElements: string[];
+}
+
+export interface PostcardTemplateInfo {
+  id: PostcardTemplate;
+  name: string;
+  icon: string;
+  description: string;
+}
+
+export interface DecorElement {
+  id: string;
+  name: string;
+  emoji: string;
+  category: string;
+}
+
+export const POSTCARD_TEMPLATES: PostcardTemplateInfo[] = [
+  { id: 'letter', name: '信纸风格', icon: 'file-text', description: '复古信纸，温暖手写' },
+  { id: 'polaroid', name: '拍立得风格', icon: 'camera', description: '拍立得相框，文艺气息' },
+  { id: 'vintage', name: '复古邮票', icon: 'stamp', description: '旧时光邮票，经典怀旧' },
+  { id: 'minimal', name: '简约卡片', icon: 'credit-card', description: '极简设计，干净大方' },
+];
+
+export const DECOR_ELEMENTS: DecorElement[] = [
+  { id: 'heart', name: '爱心', emoji: '💕', category: 'emotion' },
+  { id: 'star', name: '星星', emoji: '✨', category: 'emotion' },
+  { id: 'flower', name: '花朵', emoji: '🌸', category: 'nature' },
+  { id: 'leaf', name: '叶子', emoji: '🍃', category: 'nature' },
+  { id: 'coffee', name: '咖啡', emoji: '☕', category: 'life' },
+  { id: 'book', name: '书本', emoji: '📚', category: 'life' },
+  { id: 'moon', name: '月亮', emoji: '🌙', category: 'nature' },
+  { id: 'sun', name: '太阳', emoji: '☀️', category: 'nature' },
+  { id: 'rainbow', name: '彩虹', emoji: '🌈', category: 'nature' },
+  { id: 'music', name: '音乐', emoji: '🎵', category: 'life' },
+  { id: 'gift', name: '礼物', emoji: '🎁', category: 'life' },
+  { id: 'butterfly', name: '蝴蝶', emoji: '🦋', category: 'nature' },
+];
+
+export const CONTENT_DISPLAY_MODES = [
+  { id: 'full', name: '全文展示', description: '展示完整内容' },
+  { id: 'summary', name: '内容摘要', description: '展示内容摘要' },
+  { id: 'title', name: '仅标题', description: '只展示标题' },
+];
 
 export interface Settings {
   id: string;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { Calendar, Tag, Lock, Unlock, Send, Sparkles, Heart } from 'lucide-vue-next';
+import { Calendar, Tag, Lock, Unlock, Send, Sparkles, Heart, Globe } from 'lucide-vue-next';
 import type { CapsuleCategory, MoodType } from '../types';
 import { CATEGORIES, MOODS, PRESET_TIMES } from '../types';
 import { useCapsuleOperation } from '../composables/useCapsules';
@@ -18,6 +18,7 @@ const tags = ref<string[]>([]);
 const tagInput = ref('');
 const openAt = ref('');
 const isPrivate = ref(false);
+const isPublic = ref(false);
 const email = ref('');
 const showSuccess = ref(false);
 
@@ -73,6 +74,7 @@ async function handleSubmit() {
       tags: tags.value,
       openAt: openDate.toISOString(),
       isPrivate: isPrivate.value,
+      isPublic: isPublic.value,
       email: email.value || undefined,
     });
     
@@ -312,6 +314,35 @@ function handleCancel() {
                 :class="[
                   'absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300',
                   isPrivate ? 'left-7' : 'left-1'
+                ]"
+              ></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="card-soft animate-slide-up" style="animation-delay: 0.75s">
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-2">
+                <Globe class="w-4 h-4 text-mint-green-300" />
+                <span class="text-sm font-medium text-warm-gray-700">公开分享</span>
+              </div>
+              <p class="text-sm text-warm-gray-500">
+                开启后可生成分享链接和二维码，他人可通过链接查看此胶囊
+              </p>
+            </div>
+            <button
+              type="button"
+              @click="isPublic = !isPublic"
+              :class="[
+                'relative w-14 h-8 rounded-full transition-colors duration-300',
+                isPublic ? 'bg-mint-green-200' : 'bg-warm-gray-200'
+              ]"
+            >
+              <span
+                :class="[
+                  'absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300',
+                  isPublic ? 'left-7' : 'left-1'
                 ]"
               ></span>
             </button>

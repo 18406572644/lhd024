@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHashHistory } from 'vue-router';
 import Home from '@/pages/Home.vue';
 import WriteCapsule from '@/pages/WriteCapsule.vue';
 import Categories from '@/pages/Categories.vue';
@@ -6,6 +6,7 @@ import History from '@/pages/History.vue';
 import CapsuleDetail from '@/pages/CapsuleDetail.vue';
 import Settings from '@/pages/Settings.vue';
 import LockScreen from '@/pages/LockScreen.vue';
+import ShareView from '@/pages/ShareView.vue';
 import { useSettingsStore } from '@/stores/settings';
 
 const routes = [
@@ -50,10 +51,16 @@ const routes = [
     name: 'lock',
     component: LockScreen,
   },
+  {
+    path: '/share/:id',
+    name: 'share',
+    component: ShareView,
+    meta: { requiresAuth: false },
+  },
 ];
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(),
   routes,
 });
 

@@ -1,13 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowLeft, Lock, Unlock, Trash2, Calendar, Clock, Share2, Heart, Gift, Image } from 'lucide-vue-next';
-import CountdownTimer from '@/components/CountdownTimer.vue';
+import { ArrowLeft, Lock, Calendar, Clock, Heart, Unlock } from 'lucide-vue-next';
 import LetterPaper from '@/components/LetterPaper.vue';
-import PasswordModal from '@/components/PasswordModal.vue';
-import PostcardGenerator from '@/components/PostcardGenerator.vue';
-import { useCapsuleOperation } from '@/composables/useCapsules';
-import { useSettingsStore } from '@/stores/settings';
 import { CATEGORIES, MOODS } from '../types';
 import { formatDate, formatDateTime, isPast } from '../utils/date';
 import type { Capsule } from '../types';
@@ -15,15 +10,12 @@ import * as api from '../utils/api';
 
 const route = useRoute();
 const router = useRouter();
-const { deleteCapsule, loading } = useCapsuleOperation();
-const settingsStore = useSettingsStore();
 
 const capsule = ref<Capsule | null>(null);
-const showPasswordModal = ref(false);
-const showDeleteConfirm = ref(false);
+const loading = ref(true);
+const notFound = ref(false);
 const isOpening = ref(false);
 const isRevealed = ref(false);
-const showPostcardGenerator = ref(false);
 
 const categoryInfo = computed(() => 
   capsule.value ? CATEGORIES.find(c => c.id === capsule.value!.category) : null
@@ -37,32 +29,27 @@ const canOpen = computed(() =>
   capsule.value && (capsule.value.isOpened || isPast(capsule.value.openAt))
 );
 
-const needsPassword = computed(() => 
-  capsule.value?.isPrivate && settingsStore.hasPassword && !isRevealed.value
-);
-
 onMounted(async () => {
   const id = route.params.id as string;
-  const data = await api.getCapsuleById(id);
-  if (data) {
-    capsule.value = data;
-    if (canOpen.value && !data.isPrivate) {
-      isRevealed.value = true;
+  try {
+    const data = await api.getPublicCapsuleById(id);
+    if (data) {
+      capsule.value = data;
+      if (canOpen.value && !data.isPrivate) {
+        isRevealed.value = true;
+      }
+    } else {
+      notFound.value = true;
     }
-  } else {
-    router.push('/');
+  } catch (error) {
+    notFound.value = true;
+  } finally {
+    loading.value = false;
   }
 });
 
 async function openCapsule() {
-  if (!capsule.value) return;
-  
-  if (capsule.value.isPrivate && settingsStore.hasPassword && !isRevealed.value) {
-    showPasswordModal.value = true;
-    return;
-  }
-  
-  if (!canOpen.value) return;
+  if (!capsule.value || !canOpen.value) return;
   
   isOpening.value = true;
   
@@ -76,43 +63,13 @@ async function openCapsule() {
   isOpening.value = false;
 }
 
-function handlePasswordSuccess() {
-  showPasswordModal.value = false;
-  isRevealed.value = true;
-}
-
-async function handleDelete() {
-  if (!capsule.value) return;
-  
-  const confirmed = confirm('确定要删除这个胶囊吗？这个操作无法撤销。');
-  if (!confirmed) return;
-  
-  const success = await deleteCapsule(capsule.value.id);
-  if (success) {
-    router.push('/');
-  }
-}
-
 function goBack() {
-  router.back();
+  window.history.length > 1 ? router.back() : router.push('/');
 }
 </script>
 
 <template>
   <div class="min-h-screen py-8">
-    <PasswordModal
-      v-model:show="showPasswordModal"
-      title="请输入密码"
-      description="这是一封私密信件，请输入密码验证后查看"
-      @success="handlePasswordSuccess"
-    />
-
-    <PostcardGenerator
-      :show="showPostcardGenerator"
-      :capsule="capsule"
-      @close="showPostcardGenerator = false"
-    />
-
     <div class="container mx-auto px-4 max-w-3xl">
       <button
         @click="goBack"
@@ -122,8 +79,23 @@ function goBack() {
         <span>返回</span>
       </button>
 
-      <div v-if="!capsule" class="flex items-center justify-center py-20">
+      <div v-if="loading" class="flex items-center justify-center py-20">
         <div class="w-10 h-10 border-4 border-soft-pink-200 border-t-soft-pink-400 rounded-full animate-spin"></div>
+      </div>
+
+      <div v-else-if="notFound" class="card-soft text-center py-16 animate-scale-in">
+        <div class="w-24 h-24 rounded-full bg-gradient-to-br from-warm-gray-100 to-warm-gray-200 flex items-center justify-center mx-auto mb-6">
+          <Lock class="w-12 h-12 text-warm-gray-400" />
+        </div>
+        <h3 class="font-serif-sc text-2xl font-semibold text-warm-gray-800 mb-3">
+          胶囊不存在或未公开
+        </h3>
+        <p class="text-warm-gray-500 mb-8 max-w-md mx-auto">
+          这个胶囊可能已被删除、设置为私密，或者链接无效。
+        </p>
+        <button @click="router.push('/')" class="btn-primary px-6">
+          返回首页
+        </button>
       </div>
 
       <div v-else class="space-y-8">
@@ -148,10 +120,11 @@ function goBack() {
               <Clock class="w-4 h-4" />
               开启时间 {{ formatDate(capsule.openAt) }}
             </span>
-            <span v-if="capsule.isPrivate" class="flex items-center gap-1 text-lavender-400">
-              <Lock class="w-4 h-4" />
-              私密胶囊
-            </span>
+          </div>
+
+          <div class="mt-4 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-mint-green-100 text-mint-green-600 text-xs">
+            <span>🌍</span>
+            <span>公开分享</span>
           </div>
         </div>
 
@@ -167,8 +140,6 @@ function goBack() {
             等到约定的那一天，这封信会给你带来惊喜 ✨
           </p>
           
-          <CountdownTimer :openAt="capsule.openAt" size="lg" />
-          
           <div class="mt-12 flex flex-wrap justify-center gap-3">
             <span
               v-for="tag in capsule.tags"
@@ -182,7 +153,7 @@ function goBack() {
 
         <div v-else-if="!isRevealed" class="card-soft text-center py-16 animate-scale-in">
           <div class="w-24 h-24 rounded-full bg-gradient-to-br from-cream-yellow-100 to-mint-green-100 flex items-center justify-center mx-auto mb-6 animate-breath cursor-pointer hover:scale-105 transition-transform" @click="openCapsule">
-            <Gift class="w-12 h-12 text-cream-yellow-400" />
+            <Heart class="w-12 h-12 text-cream-yellow-400" />
           </div>
           <h3 class="font-serif-sc text-2xl font-semibold text-warm-gray-800 mb-3">
             有一封信在等你开启
@@ -206,47 +177,9 @@ function goBack() {
         <Transition name="fade">
           <div v-if="isRevealed" class="space-y-8 animate-fade-in">
             <div class="mb-6">
-              <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-2 text-mint-green-600">
-                  <Unlock class="w-5 h-5" />
-                  <span class="font-medium">已开启 · {{ formatDateTime(capsule.openAt) }}</span>
-                </div>
-                <div class="flex gap-2">
-                  <button
-                    @click="showPostcardGenerator = true"
-                    class="p-2 rounded-full hover:bg-soft-pink-50 text-warm-gray-400 hover:text-soft-pink-500 transition-colors flex items-center gap-1"
-                    title="生成分享明信片"
-                  >
-                    <Image class="w-5 h-5" />
-                    <span class="text-sm hidden sm:inline">分享</span>
-                  </button>
-                  <button
-                    @click="showDeleteConfirm = true"
-                    class="p-2 rounded-full hover:bg-red-50 text-warm-gray-400 hover:text-red-400 transition-colors"
-                    title="删除胶囊"
-                  >
-                    <Trash2 class="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-              
-              <div v-if="showDeleteConfirm" class="bg-red-50 border border-red-100 rounded-2xl p-4 mb-4">
-                <p class="text-sm text-red-600 mb-3">确定要删除这个胶囊吗？这个操作无法撤销。</p>
-                <div class="flex gap-2">
-                  <button
-                    @click="showDeleteConfirm = false"
-                    class="px-4 py-2 rounded-full text-sm bg-white border border-warm-gray-200 text-warm-gray-600 hover:bg-warm-gray-50"
-                  >
-                    取消
-                  </button>
-                  <button
-                    @click="handleDelete"
-                    :disabled="loading"
-                    class="px-4 py-2 rounded-full text-sm bg-red-100 text-red-600 hover:bg-red-200 disabled:opacity-50"
-                  >
-                    {{ loading ? '删除中...' : '确认删除' }}
-                  </button>
-                </div>
+              <div class="flex items-center gap-2 text-mint-green-600">
+                <Unlock class="w-5 h-5" />
+                <span class="font-medium">已开启 · {{ formatDateTime(capsule.openAt) }}</span>
               </div>
             </div>
 
@@ -274,6 +207,12 @@ function goBack() {
               </p>
               <p class="text-xs mt-2">
                 穿越了 {{ Math.ceil((new Date(capsule.openAt).getTime() - new Date(capsule.createdAt).getTime()) / (1000 * 60 * 60 * 24)) }} 天的时光，与你相遇
+              </p>
+            </div>
+
+            <div class="text-center mt-8">
+              <p class="text-xs text-warm-gray-400 font-serif-sc">
+                —— 来自「时间胶囊」的分享
               </p>
             </div>
           </div>

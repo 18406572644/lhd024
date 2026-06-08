@@ -56,6 +56,7 @@ function getMockCapsules(): Capsule[] {
       openAt: futureDate2.toISOString(),
       isOpened: false,
       isPrivate: true,
+      isPublic: false,
     },
     {
       id: generateId(),
@@ -68,6 +69,7 @@ function getMockCapsules(): Capsule[] {
       openAt: futureDate1.toISOString(),
       isOpened: false,
       isPrivate: false,
+      isPublic: true,
     },
     {
       id: generateId(),
@@ -80,6 +82,7 @@ function getMockCapsules(): Capsule[] {
       openAt: soonDate.toISOString(),
       isOpened: false,
       isPrivate: true,
+      isPublic: false,
     },
     {
       id: generateId(),
@@ -92,6 +95,7 @@ function getMockCapsules(): Capsule[] {
       openAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000).toISOString(),
       isOpened: true,
       isPrivate: false,
+      isPublic: true,
     },
     {
       id: generateId(),
@@ -104,10 +108,31 @@ function getMockCapsules(): Capsule[] {
       openAt: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000).toISOString(),
       isOpened: true,
       isPrivate: true,
+      isPublic: false,
     },
   ];
 
   return capsules;
+}
+
+export async function getPublicCapsuleById(id: string): Promise<Capsule | null> {
+  await delay();
+  const capsules = getStorage<Capsule[]>(STORAGE_KEYS.CAPSULES, []);
+  const capsule = capsules.find(c => c.id === id);
+  
+  if (!capsule || !capsule.isPublic) return null;
+  
+  if (!capsule.isOpened && isPast(capsule.openAt)) {
+    capsule.isOpened = true;
+    setStorage(STORAGE_KEYS.CAPSULES, capsules);
+  }
+  
+  return decryptCapsuleContent(capsule);
+}
+
+export function generateShareLink(capsuleId: string): string {
+  const baseUrl = window.location.origin;
+  return `${baseUrl}${window.location.pathname}#/share/${capsuleId}`;
 }
 
 export async function getCapsules(): Promise<Capsule[]> {
@@ -146,7 +171,7 @@ export async function getCapsuleById(id: string): Promise<Capsule | null> {
   return decryptCapsuleContent(capsule);
 }
 
-export async function createCapsule(data: Omit<Capsule, 'id' | 'createdAt' | 'isOpened'>): Promise<Capsule> {
+export async function createCapsule(data: Omit<Capsule, 'id' | 'createdAt' | 'isOpened' | 'isPublic'> & { isPublic?: boolean }): Promise<Capsule> {
   await delay();
   const capsules = getStorage<Capsule[]>(STORAGE_KEYS.CAPSULES, []);
   
@@ -155,6 +180,7 @@ export async function createCapsule(data: Omit<Capsule, 'id' | 'createdAt' | 'is
     id: generateId(),
     createdAt: new Date().toISOString(),
     isOpened: false,
+    isPublic: data.isPublic ?? false,
   };
   
   const encrypted = encryptCapsuleContent(newCapsule);
