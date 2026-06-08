@@ -1,0 +1,191 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  body {
+    @apply bg-warm-gray-50 text-warm-gray-800 min-h-screen;
+    background-image: 
+      radial-gradient(circle at 20% 10%, rgba(255, 228, 230, 0.3) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(254, 243, 199, 0.3) 0%, transparent 50%),
+      radial-gradient(circle at 40% 60%, rgba(209, 250, 229, 0.2) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Noto Serif SC', serif;
+    @apply text-warm-gray-900;
+  }
+}
+
+@layer components {
+  .btn-soft {
+    @apply px-6 py-3 rounded-full font-medium transition-all duration-300 ease-soft
+           hover:shadow-soft hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  .btn-primary {
+    @apply btn-soft bg-soft-pink-200 text-warm-gray-800
+           hover:bg-soft-pink-300;
+  }
+
+  .btn-secondary {
+    @apply btn-soft bg-white text-warm-gray-700 border border-warm-gray-200
+           hover:border-soft-pink-200 hover:bg-soft-pink-50;
+  }
+
+  .card-soft {
+    @apply bg-white rounded-3xl p-6 shadow-softer border border-warm-gray-100
+           transition-all duration-300 ease-soft;
+  }
+
+  .card-hover {
+    @apply hover:shadow-soft hover:-translate-y-1;
+  }
+
+  .input-soft {
+    @apply w-full px-4 py-3 rounded-2xl border border-warm-gray-200
+           focus:border-soft-pink-300 focus:ring-4 focus:ring-soft-pink-100
+           focus:outline-none transition-all duration-300
+           bg-white text-warm-gray-800;
+  }
+
+  .input-soft::placeholder {
+    color: #A8A29E;
+  }
+
+  .tag-soft {
+    @apply px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-soft-pink-400 via-cream-yellow-300 to-mint-green-300
+           bg-clip-text text-transparent;
+  }
+
+  .glass-soft {
+    @apply bg-white/70 backdrop-blur-md border border-white/50;
+  }
+
+  .letter-paper {
+    @apply bg-gradient-to-b from-cream-yellow-50 to-white
+           border border-cream-yellow-200 rounded-2xl p-8;
+    background-image: repeating-linear-gradient(
+      transparent,
+      transparent 31px,
+      rgba(231, 224, 213, 0.5) 31px,
+      rgba(231, 224, 213, 0.5) 32px
+    );
+    background-position: 0 20px;
+  }
+
+  .letter-textarea::placeholder {
+    color: #D4C8B8;
+  }
+}
+
+@layer utilities {
+  .noise-bg {
+    position: relative;
+  }
+
+  .noise-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  .scrollbar-soft::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-soft::-webkit-scrollbar-track {
+    background-color: #F5F0E8;
+    border-radius: 9999px;
+  }
+
+  .scrollbar-soft::-webkit-scrollbar-thumb {
+    background-color: #D4C8B8;
+    border-radius: 9999px;
+  }
+
+  .scrollbar-soft::-webkit-scrollbar-thumb:hover {
+    background-color: #A8A29E;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+.page-enter-active,
+.page-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+.star {
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+.star:nth-child(2n) {
+  animation-delay: 0.5s;
+  animation-duration: 4s;
+}
+
+.star:nth-child(3n) {
+  animation-delay: 1s;
+  animation-duration: 5s;
+}
+
+
