@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Home, PenSquare, Grid3X3, Clock, Settings, Menu, X } from 'lucide-vue-next';
+import { Home, PenSquare, Grid3X3, Clock, Settings, Menu, X, FileText } from 'lucide-vue-next';
 
 const route = useRoute();
 const router = useRouter();
@@ -10,6 +10,7 @@ const mobileMenuOpen = ref(false);
 const navItems = [
   { path: '/', label: '首页', icon: Home },
   { path: '/write', label: '写胶囊', icon: PenSquare },
+  { path: '/templates', label: '模板', icon: FileText },
   { path: '/categories', label: '分类', icon: Grid3X3 },
   { path: '/history', label: '历史', icon: Clock },
   { path: '/settings', label: '设置', icon: Settings },

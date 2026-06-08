@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { Calendar, Tag, Lock, Unlock, Send, Sparkles, Heart, Globe, Image, Mic, Video, X, Edit2, AlertTriangle, Play } from 'lucide-vue-next';
-import type { CapsuleCategory, MoodType, Attachment, ImageEditConfig } from '../types';
+import { useRouter, useRoute } from 'vue-router';
+import { Calendar, Tag, Lock, Unlock, Send, Sparkles, Heart, Globe, Image, Mic, Video, X, Edit2, AlertTriangle, Play, FileText, Wand2 } from 'lucide-vue-next';
+import type { CapsuleCategory, MoodType, Attachment, ImageEditConfig, Template } from '../types';
 import { CATEGORIES, MOODS, PRESET_TIMES, ATTACHMENT_LIMITS, IMAGE_FILTERS } from '../types';
 import { useCapsuleOperation } from '../composables/useCapsules';
 import { addMonths, formatDate, dayjs } from '../utils/date';
@@ -10,9 +10,15 @@ import { validateFileSize, formatFileSize, formatDuration, getStorageStats } fro
 import ImageEditor from '../components/attachment/ImageEditor.vue';
 import AudioRecorder from '../components/attachment/AudioRecorder.vue';
 import VideoRecorder from '../components/attachment/VideoRecorder.vue';
+import TemplateSelector from '../components/TemplateSelector.vue';
+import TemplateDetail from '../components/TemplateDetail.vue';
+import AIAssistant from '../components/AIAssistant.vue';
+import { useTemplatesStore } from '../stores/templates';
 
 const router = useRouter();
+const route = useRoute();
 const { createCapsule, loading } = useCapsuleOperation();
+const templatesStore = useTemplatesStore();
 
 const title = ref('');
 const content = ref('');
@@ -25,6 +31,44 @@ const isPrivate = ref(false);
 const isPublic = ref(false);
 const email = ref('');
 const showSuccess = ref(false);
+
+const showTemplateSelector = ref(false);
+const showTemplateDetail = ref(false);
+const showAIAssistant = ref(false);
+const selectedTemplate = ref<Template | null>(null);
+const contentCursorPosition = ref(0);
+const contentTextareaRef = ref<HTMLTextAreaElement | null>(null);
+
+function updateCursorPosition() {
+  if (contentTextareaRef.value) {
+    contentCursorPosition.value = contentTextareaRef.value.selectionStart;
+  }
+}
+
+function handleSelectTemplate(template: Template) {
+  selectedTemplate.value = template;
+  showTemplateSelector.value = false;
+  showTemplateDetail.value = true;
+}
+
+function handleApplyTemplate(newContent: string, newTitle: string) {
+  if (newTitle && !title.value) {
+    title.value = newTitle;
+  }
+  if (newContent) {
+    content.value = newContent;
+  }
+  showTemplateDetail.value = false;
+  if (selectedTemplate.value) {
+    templatesStore.incrementUsage(selectedTemplate.value.id);
+  }
+}
+
+function handleInsertAIContent(aiContent: string, position: number) {
+  const before = content.value.substring(0, position);
+  const after = content.value.substring(position);
+  content.value = before + aiContent + after;
+}
 
 interface PendingAttachment {
   file: File;
@@ -267,6 +311,13 @@ function handleCancel() {
 
 onMounted(async () => {
   await checkStorageSpace(0);
+  
+  if (route.query.content) {
+    content.value = route.query.content as string;
+  }
+  if (route.query.title) {
+    title.value = route.query.title as string;
+  }
 });
 </script>
 
@@ -314,12 +365,36 @@ onMounted(async () => {
         </div>
 
         <div class="card-soft animate-slide-up" style="animation-delay: 0.2s">
-          <label class="block text-sm font-medium text-warm-gray-700 mb-2">
-            <span class="text-cream-yellow-400 mr-1">✉️</span> 信件内容
-          </label>
+          <div class="flex items-center justify-between mb-2">
+            <label class="block text-sm font-medium text-warm-gray-700">
+              <span class="text-cream-yellow-400 mr-1">✉️</span> 信件内容
+            </label>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                @click="showTemplateSelector = true"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-lavender-50 text-lavender-600 rounded-lg hover:bg-lavender-100 transition-colors"
+              >
+                <FileText class="w-3.5 h-3.5" />
+                使用模板
+              </button>
+              <button
+                type="button"
+                @click="updateCursorPosition(); showAIAssistant = true"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-soft-pink-50 to-lavender-50 text-soft-pink-600 rounded-lg hover:from-soft-pink-100 hover:to-lavender-100 transition-colors"
+              >
+                <Wand2 class="w-3.5 h-3.5" />
+                AI 助手
+              </button>
+            </div>
+          </div>
           <div class="letter-paper min-h-[300px]">
             <textarea
+              ref="contentTextareaRef"
               v-model="content"
+              @click="updateCursorPosition"
+              @keyup="updateCursorPosition"
+              @select="updateCursorPosition"
               placeholder="亲爱的未来的自己...
 
 此刻，我正坐在窗前，窗外的阳光正好。我想对你说..."
@@ -741,5 +816,30 @@ onMounted(async () => {
         </div>
       </div>
     </Transition>
+
+    <TemplateSelector
+      :show="showTemplateSelector"
+      :capsule-category="category"
+      :mood="mood"
+      @close="showTemplateSelector = false"
+      @select="handleSelectTemplate"
+      @create="showTemplateSelector = false; router.push('/templates')"
+    />
+
+    <TemplateDetail
+      :show="showTemplateDetail"
+      :template="selectedTemplate"
+      @close="showTemplateDetail = false"
+      @back="showTemplateDetail = false; showTemplateSelector = true"
+      @apply="handleApplyTemplate"
+    />
+
+    <AIAssistant
+      :show="showAIAssistant"
+      :current-content="content"
+      :cursor-position="contentCursorPosition"
+      @close="showAIAssistant = false"
+      @insert="handleInsertAIContent"
+    />
   </div>
 </template>

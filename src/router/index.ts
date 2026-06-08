@@ -7,6 +7,7 @@ import CapsuleDetail from '@/pages/CapsuleDetail.vue';
 import Settings from '@/pages/Settings.vue';
 import LockScreen from '@/pages/LockScreen.vue';
 import ShareView from '@/pages/ShareView.vue';
+import Templates from '@/pages/Templates.vue';
 import { useSettingsStore } from '@/stores/settings';
 
 const routes = [
@@ -56,6 +57,12 @@ const routes = [
     name: 'share',
     component: ShareView,
     meta: { requiresAuth: false },
+  },
+  {
+    path: '/templates',
+    name: 'templates',
+    component: Templates,
+    meta: { requiresAuth: true },
   },
 ];
 

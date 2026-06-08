@@ -243,3 +243,114 @@ export const ATTACHMENT_LIMITS = {
   MAX_VIDEO_SIZE: 100 * 1024 * 1024,
   MAX_TOTAL_STORAGE: 500 * 1024 * 1024,
 } as const;
+
+export type TemplateCategoryType =
+  | 'annual_summary'
+  | 'birthday_wish'
+  | 'love_letter'
+  | 'career_growth'
+  | 'self_encouragement'
+  | 'gratitude'
+  | 'apology'
+  | 'farewell'
+  | 'future_dream'
+  | 'daily_reflection'
+  | 'friendship'
+  | 'family'
+  | 'travel_memory'
+  | 'milestone'
+  | 'mental_health'
+  | 'creativity'
+  | 'financial_goal'
+  | 'health_fitness'
+  | 'relationship'
+  | 'custom';
+
+export interface TemplateQuestion {
+  id: string;
+  question: string;
+  placeholder: string;
+  required: boolean;
+}
+
+export interface TemplateFillable {
+  id: string;
+  label: string;
+  placeholder: string;
+  defaultValue?: string;
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  description: string;
+  category: TemplateCategoryType;
+  icon: string;
+  emoji: string;
+  color: string;
+  suitableMoods: MoodType[];
+  suitableCategories: CapsuleCategory[];
+  questions: TemplateQuestion[];
+  fillables: TemplateFillable[];
+  contentTemplate: string;
+  isCustom: boolean;
+  isFavorite: boolean;
+  usageCount: number;
+  createdAt: string;
+  author?: string;
+  tags: string[];
+}
+
+export interface TemplateCategoryInfo {
+  id: TemplateCategoryType;
+  name: string;
+  icon: string;
+  emoji: string;
+  color: string;
+  bgColor: string;
+  description: string;
+}
+
+export interface AIParagraphSuggestion {
+  id: string;
+  content: string;
+  keywords: string[];
+  tone: 'warm' | 'formal' | 'casual' | 'emotional' | 'inspirational';
+}
+
+export interface ExportedTemplate {
+  version: string;
+  exportedAt: string;
+  template: Template;
+}
+
+export const TEMPLATE_CATEGORIES: TemplateCategoryInfo[] = [
+  { id: 'annual_summary', name: '年度总结', icon: 'calendar', emoji: '📅', color: 'text-lavender-300', bgColor: 'bg-lavender-100', description: '回顾过去一年的成长与收获' },
+  { id: 'birthday_wish', name: '生日愿望', icon: 'cake', emoji: '🎂', color: 'text-soft-pink-300', bgColor: 'bg-soft-pink-100', description: '在特别的日子许下心愿' },
+  { id: 'love_letter', name: '给恋人的话', icon: 'heart', emoji: '💕', color: 'text-rose-400', bgColor: 'bg-rose-100', description: '表达心中最深的爱意' },
+  { id: 'career_growth', name: '职场成长', icon: 'briefcase', emoji: '💼', color: 'text-sky-blue-300', bgColor: 'bg-sky-blue-100', description: '记录职场路上的每一步' },
+  { id: 'self_encouragement', name: '自我鼓励', icon: 'sun', emoji: '☀️', color: 'text-cream-yellow-300', bgColor: 'bg-cream-yellow-100', description: '困难时给自己力量' },
+  { id: 'gratitude', name: '感恩信', icon: 'pray', emoji: '🙏', color: 'text-mint-green-300', bgColor: 'bg-mint-green-100', description: '感谢生命中的每一份温暖' },
+  { id: 'apology', name: '道歉信', icon: 'message-circle', emoji: '💬', color: 'text-warm-gray-400', bgColor: 'bg-warm-gray-100', description: '真诚地表达歉意' },
+  { id: 'farewell', name: '告别信', icon: 'send', emoji: '👋', color: 'text-sky-blue-400', bgColor: 'bg-sky-blue-50', description: '好好说再见' },
+  { id: 'future_dream', name: '未来梦想', icon: 'sparkles', emoji: '✨', color: 'text-lavender-400', bgColor: 'bg-lavender-50', description: '写给未来的自己' },
+  { id: 'daily_reflection', name: '日常感悟', icon: 'book-open', emoji: '📖', color: 'text-warm-gray-500', bgColor: 'bg-warm-gray-50', description: '记录平凡日子的小确幸' },
+  { id: 'friendship', name: '友情', icon: 'users', emoji: '🤝', color: 'text-mint-green-400', bgColor: 'bg-mint-green-50', description: '珍惜身边的朋友' },
+  { id: 'family', name: '亲情', icon: 'home', emoji: '🏠', color: 'text-soft-pink-400', bgColor: 'bg-soft-pink-50', description: '写给最爱的家人' },
+  { id: 'travel_memory', name: '旅行回忆', icon: 'map', emoji: '✈️', color: 'text-sky-blue-500', bgColor: 'bg-sky-blue-50', description: '记录旅途中的美好' },
+  { id: 'milestone', name: '里程碑', icon: 'flag', emoji: '🎯', color: 'text-cream-yellow-500', bgColor: 'bg-cream-yellow-50', description: '纪念人生重要时刻' },
+  { id: 'mental_health', name: '心理健康', icon: 'brain', emoji: '🧠', color: 'text-lavender-300', bgColor: 'bg-lavender-50', description: '关注内心的声音' },
+  { id: 'creativity', name: '创作灵感', icon: 'palette', emoji: '🎨', color: 'text-soft-pink-300', bgColor: 'bg-soft-pink-50', description: '捕捉每一个灵感瞬间' },
+  { id: 'financial_goal', name: '财务目标', icon: 'wallet', emoji: '💰', color: 'text-mint-green-500', bgColor: 'bg-mint-green-50', description: '规划财富人生' },
+  { id: 'health_fitness', name: '健康健身', icon: 'heart-pulse', emoji: '💪', color: 'text-green-400', bgColor: 'bg-green-50', description: '记录健康生活' },
+  { id: 'relationship', name: '人际关系', icon: 'users-round', emoji: '👥', color: 'text-warm-gray-400', bgColor: 'bg-warm-gray-50', description: '经营生命中的缘分' },
+  { id: 'custom', name: '自定义', icon: 'edit-3', emoji: '✏️', color: 'text-warm-gray-500', bgColor: 'bg-warm-gray-100', description: '创建属于你的模板' },
+];
+
+export const TONE_OPTIONS = [
+  { id: 'warm', name: '温暖', emoji: '🌷', description: '温柔治愈的语气' },
+  { id: 'formal', name: '正式', emoji: '📋', description: '专业严谨的语气' },
+  { id: 'casual', name: '轻松', emoji: '😊', description: '随意自在的语气' },
+  { id: 'emotional', name: '感性', emoji: '💫', description: '富有情感的语气' },
+  { id: 'inspirational', name: '励志', emoji: '🚀', description: '充满力量的语气' },
+] as const;
